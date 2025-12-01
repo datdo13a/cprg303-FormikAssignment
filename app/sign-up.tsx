@@ -1,8 +1,11 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth,db } from '../lib/firebase';
+import {doc, setDoc} from 'firebase/firestore';
 
 
 interface SignUpFormValues {
@@ -38,11 +41,46 @@ const SignUpSchema = Yup.object().shape({
 })
 const SignUp = () => {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
-  const handleSignUp = async(values: SignUpFormValues) => {
+  const handleSignUp = async (values: SignUpFormValues) => {
+    try {
+      setIsLoading(true);
+      setFirebaseError(null);
 
-    console.log("Sign Up Values: ",values);
-  }
+      // Create user account
+      const userCredentials = await createUserWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
+
+      // Redirect immediately after successful user creation
+      router.replace("/dashboard");
+
+      // Try to save additional user data (optional, don't block redirect)
+      try {
+        await setDoc(doc(db, "users", userCredentials.user.uid), {
+          fullName: values.fullName,
+          userName: values.userName,
+          email: values.email,
+          phone: values.phone,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (firestoreError) {
+        console.log(
+          "Firestore save failed, but user was created successfully:",
+          firestoreError
+        );
+      }
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      setFirebaseError(error.message || "Sign up failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -124,8 +162,11 @@ const SignUp = () => {
             {errors.confirmPassword && touched.confirmPassword && 
               <Text style={styles.error}>{errors.confirmPassword}</Text>
             }
-            <TouchableOpacity style={styles.button} onPress={()=> handleSubmit()}>
-              <Text style={styles.buttonText}>Submit Sign Up Information</Text>
+
+            {firebaseError && <Text style={styles.error}>{firebaseError}</Text>}
+
+            <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={()=> handleSubmit()} disabled={isLoading} >
+              <Text style={styles.buttonText}>{isLoading ? "Signing Up..." : "Submit Sign Up Information"}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -167,6 +208,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
+  },
+    buttonDisabled: {
+    backgroundColor: "#9ca3af",
+    opacity: 0.6,
   },
   buttonText: {
     color:"#fff",
