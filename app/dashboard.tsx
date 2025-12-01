@@ -1,12 +1,43 @@
 import { logout } from "@/utils/logout";
 import { Redirect, router } from "expo-router";
-import React from "react";
+import React, {useEffect, useState} from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../hooks/useAuth";
+import { auth, db } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
+  const [userData, setUserData] = useState<any>(null);
+  const [fetchingData, setFetchingData] = useState(true);
 
+    useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.uid) {
+        try {
+          console.log("Fetching data for user:", user.uid); // Debug log
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            console.log("User data found:", docSnap.data()); // Debug log
+            setUserData(docSnap.data());
+          } else {
+            console.log("No user document found in Firestore");
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        } finally {
+          setFetchingData(false);
+        }
+      } else {
+        console.log("No user UID available yet"); // Debug log
+        setFetchingData(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
   // Show loading spinner while checking authentication
   if (loading) {
     return (
@@ -29,7 +60,9 @@ const Dashboard = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.welcome}>Welcome!</Text>
-      <Text style={styles.userEmail}>{user.fullName}</Text>
+      <Text style={styles.userEmail}>
+        {userData?.fullName || user.email}
+      </Text>
       <TouchableOpacity style={styles.logOutButton} onPress={handleLogOut}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>

@@ -56,9 +56,6 @@ const SignUp = () => {
         values.password
       );
 
-      // Redirect immediately after successful user creation
-      router.replace("/dashboard");
-
       // Try to save additional user data (optional, don't block redirect)
       try {
         await setDoc(doc(db, "users", userCredentials.user.uid), {
@@ -74,6 +71,10 @@ const SignUp = () => {
           firestoreError
         );
       }
+
+      // Redirect immediately after successful user creation
+      router.replace("/dashboard");
+      
     } catch (error: any) {
       console.error("Sign up error:", error);
       setFirebaseError(error.message || "Sign up failed");
