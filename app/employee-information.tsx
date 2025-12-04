@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { doc, setDoc } from "firebase/firestore";
+import { addDoc, collection } from "firebase/firestore";
 import { Formik } from "formik";
 import React, { useState } from "react";
 import {
@@ -61,7 +61,7 @@ const EmployeeInformation = () => {
       const employeeId = `${values.firstName}_${values.lastName}_${Date.now()}`;
 
       try {
-        await setDoc(doc(db, "employees", employeeId), {
+        await addDoc(collection(db, "employees"), {
           firstName: values.firstName,
           lastName: values.lastName,
           city: values.city,
