@@ -1,133 +1,180 @@
+import { useRouter } from "expo-router";
+import { doc, setDoc } from "firebase/firestore";
 import { Formik } from "formik";
-import React from "react";
+import React, { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
 } from "react-native";
 import * as Yup from "yup";
+import { db } from "../lib/firebase";
 
 interface EmployeeFormValues {
-    firstName: string;
-    lastName: string;
-    city: string;
-    province: string;
-    postalCode: string;
+  firstName: string;
+  lastName: string;
+  city: string;
+  province: string;
+  postalCode: string;
 }
 
 const EmployeeInfoSchema = Yup.object().shape({
-    firstName: Yup.string()
+  firstName: Yup.string()
     .min(3, "Name cannot be less than 3 letters")
     .max(40, "Name cannot be more than 40 letters")
     .required("First name is required"),
-    lastName: Yup.string()
+  lastName: Yup.string()
     .min(2, "last name cannot be less than 2 letters")
     .max(25, "last name cannot be more than 25 letters")
     .required("Last name is required."),
-    city: Yup.string()
+  city: Yup.string()
     .min(3, "City canno tbe less than 3 letters")
     .max(30, "City cannot be more than 30 letters")
     .required("City is required"),
 
-    // Province requires two letters, such as AB, ab, BC, ON, on, etc
-    province: Yup.string()
-    .matches(/^[A-Z, a-z]{2}$/, "Province must be in two letter format"),
+  // Province requires two letters, such as AB, ab, BC, ON, on, etc
+  province: Yup.string().matches(
+    /^[A-Z, a-z]{2}$/,
+    "Province must be in two letter format"
+  ),
 
-    // This REGEX was found online. It takes any form of proper Canadian postal code
-    postalCode: Yup.string()
-    .matches(/^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY][ -]?\d[ABCEGHJKLMNPRSTVXY]\d$/i, "Postal code is in incorrect")
-})
-
-
+  // This REGEX was found online. It takes any form of proper Canadian postal code
+  postalCode: Yup.string().matches(
+    /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY][ -]?\d[ABCEGHJKLMNPRSTVXY]\d$/i,
+    "Postal code is in incorrect"
+  ),
+});
 
 const EmployeeInformation = () => {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
-    const handleSubmitEmployeeForm = (values: EmployeeFormValues) => {
-    console.log("Employee Information: ", values);
+  const handleSubmitEmployeeForm = async (values: EmployeeFormValues) => {
+    try {
+      setIsLoading(true);
+      setFirebaseError(null);
 
-};
+      // Generate a unique ID for this employee
+      const employeeId = `${values.firstName}_${values.lastName}_${Date.now()}`;
+
+      try {
+        await setDoc(doc(db, "employees", employeeId), {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          city: values.city,
+          province: values.province,
+          postalCode: values.postalCode,
+          createdAt: new Date().toISOString(),
+        });
+        // employee information submitted to database!
+        alert("Emplyee information submitted success!");
+
+        router.push("/");
+      } catch (firestoreError) {
+        console.log("firestore save failed", firestoreError);
+      }
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      setFirebaseError(error.message || "Sign up failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-        <Formik<EmployeeFormValues>
-            initialValues={{
-                firstName: "",
-                lastName: "",
-                city: "",
-                province: "",
-                postalCode: "",
-            }}
-            validationSchema={EmployeeInfoSchema}
-            onSubmit={handleSubmitEmployeeForm}
+      <Formik<EmployeeFormValues>
+        initialValues={{
+          firstName: "",
+          lastName: "",
+          city: "",
+          province: "",
+          postalCode: "",
+        }}
+        validationSchema={EmployeeInfoSchema}
+        onSubmit={handleSubmitEmployeeForm}
+      >
+        {({
+          handleChange,
+          handleBlur,
+          handleSubmit,
+          values,
+          errors,
+          touched,
+        }) => (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="First Name"
+              onChangeText={handleChange("firstName")}
+              onBlur={handleBlur("firstName")}
+              value={values.firstName}
+            />
+            {touched.firstName && errors.firstName && (
+              <Text style={styles.error}>{errors.firstName}</Text>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Last Name"
+              onChangeText={handleChange("lastName")}
+              onBlur={handleBlur("lastName")}
+              value={values.lastName}
+            />
+            {touched.lastName && errors.lastName && (
+              <Text style={styles.error}>{errors.lastName}</Text>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="City"
+              onChangeText={handleChange("city")}
+              onBlur={handleBlur("city")}
+              value={values.city}
+            />
+            {touched.city && errors.city && (
+              <Text style={styles.error}>{errors.city}</Text>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Province"
+              onChangeText={handleChange("province")}
+              onBlur={handleBlur("province")}
+              value={values.province}
+            />
+            {touched.province && errors.province && (
+              <Text style={styles.error}>{errors.province}</Text>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Postal Code"
+              onChangeText={handleChange("postalCode")}
+              onBlur={handleBlur("postalCode")}
+              value={values.postalCode}
+            />
+            {touched.postalCode && errors.postalCode && (
+              <Text style={styles.error}>{errors.postalCode}</Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => handleSubmit()}
             >
-                {({
-                    handleChange,
-                    handleBlur,
-                    handleSubmit,
-                    values,
-                    errors,
-                    touched
-                }) => (
-                    <>
-                        <TextInput 
-                            style={styles.input}
-                            placeholder="First Name"
-                            onChangeText={handleChange("firstName")}
-                            onBlur={handleBlur("firstName")}
-                            value={values.firstName}
-                        />
-                        { touched.firstName && errors.firstName && <Text style={styles.error}>{errors.firstName}</Text>}
-
-                                               <TextInput 
-                            style={styles.input}
-                            placeholder="Last Name"
-                            onChangeText={handleChange("lastName")}
-                            onBlur={handleBlur("lastName")}
-                            value={values.lastName}
-                        />
-                        { touched.lastName && errors.lastName && <Text style={styles.error}>{errors.lastName}</Text>}
-
-                        <TextInput 
-                            style={styles.input}
-                            placeholder="City"
-                            onChangeText={handleChange("city")}
-                            onBlur={handleBlur("city")}
-                            value={values.city}
-                        />
-                        { touched.city && errors.city && <Text style={styles.error}>{errors.city}</Text>}
-
-                                               <TextInput 
-                            style={styles.input}
-                            placeholder="Province"
-                            onChangeText={handleChange("province")}
-                            onBlur={handleBlur("province")}
-                            value={values.province}
-                        />
-                        { touched.province && errors.province && <Text style={styles.error}>{errors.province}</Text>}
-
-                                               <TextInput 
-                            style={styles.input}
-                            placeholder="Postal Code"
-                            onChangeText={handleChange("postalCode")}
-                            onBlur={handleBlur("postalCode")}
-                            value={values.postalCode}
-                        />
-                        { touched.postalCode && errors.postalCode && <Text style={styles.error}>{errors.postalCode}</Text>}
-
-                        <TouchableOpacity style={styles.button} onPress={()=> handleSubmit()}>
-                            <Text style={styles.buttonText}>Submit Employee Information</Text>
-
-                        </TouchableOpacity>
-                    </>
-                )}
-
-        </Formik>
+              <Text style={styles.buttonText}>Submit Employee Information</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </Formik>
     </ScrollView>
-  )
-}
+  );
+};
 
-export default EmployeeInformation
+export default EmployeeInformation;
 
 const styles = StyleSheet.create({
   container: {
@@ -142,26 +189,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 10,
-    fontSize: 16
+    fontSize: 16,
   },
   error: {
     color: "#dc2626",
-    marginBottom: 8
+    marginBottom: 8,
   },
   button: {
     backgroundColor: "#2563eb",
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
   },
   buttonText: {
-    color:"#fff",
+    color: "#fff",
     fontSize: 16,
   },
   link: {
-    color: '#2563eb',
-    textAlign:"center",
-    marginTop: 20
-  }
-})
+    color: "#2563eb",
+    textAlign: "center",
+    marginTop: 20,
+  },
+});
